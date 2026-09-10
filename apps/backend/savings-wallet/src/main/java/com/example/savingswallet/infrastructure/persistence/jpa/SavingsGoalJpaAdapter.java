@@ -3,6 +3,7 @@ package com.example.savingswallet.infrastructure.persistence.jpa;
 import com.example.savingswallet.application.port.out.SavingsGoalRepository;
 import com.example.savingswallet.domain.savingsgoal.SavingsGoal;
 
+import java.util.List;
 import java.util.Objects;
 import org.springframework.stereotype.Component;
 
@@ -25,5 +26,12 @@ public class SavingsGoalJpaAdapter implements SavingsGoalRepository {
         SavingsGoalEntity entity = mapper.toEntity(goal);
         SavingsGoalEntity saved = jpaRepository.save(entity);
         return mapper.toDomain(saved);
+    }
+
+    @Override
+    public List<SavingsGoal> findByUserId(Long userId) {
+        return jpaRepository.findByUserId(userId).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 }

@@ -5,6 +5,7 @@ import com.example.savingswallet.domain.savingsgoal.SavingsGoal;
 import com.example.savingswallet.domain.savingsgoal.SavingsGoalStatus;
 import java.math.BigDecimal;
 import java.util.Currency;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -72,5 +73,40 @@ class SavingsGoalJpaAdapterIntegrationTest {
         SavingsGoalEntity entity = jpaRepository.findById(4L).orElseThrow();
         assertThat(entity.getName()).isEqualTo("Actualizado");
         assertThat(entity.getTargetAmount()).isEqualByComparingTo("2000.00");
+    }
+
+    @Test
+    void findByUserIdReturnsOnlyGoalsBelongingToThatUser() {
+        adapter.save(SavingsGoal.open(10L, 100L, "Meta propia", money("1000.00")));
+        adapter.save(SavingsGoal.open(11L, 200L, "Meta de otro", money("500.00")));
+
+        List<SavingsGoal> goals = adapter.findByUserId(100L);
+
+        assertThat(goals).extracting(SavingsGoal::id).containsExactly(10L);
+        assertThat(goals).allMatch(goal -> goal.userId().equals(100L));
+    }
+
+    @Test
+    void findByUserIdDoesNotExposeGoalsOfAnotherUser() {
+        adapter.save(SavingsGoal.open(12L, 300L, "Meta ajena", money("750.00")));
+
+        assertThat(adapter.findByUserId(100L)).isEmpty();
+    }
+
+    @Test
+    void findByUserIdReturnsMultipleGoalsOfTheSameUser() {
+        adapter.save(SavingsGoal.open(13L, 100L, "Primera", money("1000.00")));
+        adapter.save(SavingsGoal.open(14L, 100L, "Segunda", money("2000.00")));
+        adapter.save(SavingsGoal.open(15L, 200L, "De otro", money("3000.00")));
+
+        List<SavingsGoal> goals = adapter.findByUserId(100L);
+
+        assertThat(goals).extracting(SavingsGoal::id).containsExactlyInAnyOrder(13L, 14L);
+        assertThat(goals).allMatch(goal -> goal.userId().equals(100L));
+    }
+
+    @Test
+    void findByUserIdReturnsEmptyListWhenUserHasNoGoals() {
+        assertThat(adapter.findByUserId(404L)).isEmpty();
     }
 }
