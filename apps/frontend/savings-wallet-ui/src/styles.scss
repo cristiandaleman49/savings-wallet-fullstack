@@ -1,1 +1,39 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global styles: shared UI primitives used across feature components. */
+
+.button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+
+  &:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+
+  &--primary {
+    background-color: #2563eb;
+    color: #fff;
+
+    &:hover {
+      background-color: #1d4ed8;
+    }
+  }
+
+  &--ghost {
+    background-color: transparent;
+    border-color: #cbd5e1;
+    color: #1e293b;
+
+    &:hover {
+      background-color: #f1f5f9;
+    }
+  }
+}

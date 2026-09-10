@@ -95,7 +95,7 @@ describe('SavingsGoalsStateService', () => {
     apiServiceMock.getSavingsGoals.mockReturnValueOnce(throwError(() => new Error('network down')));
     stateService.loadGoals();
 
-    expect(stateService.error()).toBe('Could not load your savings goals. Please try again.');
+    expect(stateService.error()).toBe('No se pudieron cargar tus metas de ahorro. Inténtalo de nuevo.');
     expect(stateService.loading()).toBe(false);
     expect(stateService.goals()).toEqual([existingGoal]);
   });
@@ -128,7 +128,7 @@ describe('SavingsGoalsStateService', () => {
 
     stateService.createGoal(request);
 
-    expect(stateService.error()).toBe('Could not create the savings goal. Please try again.');
+    expect(stateService.error()).toBe('No se pudo crear la meta de ahorro. Inténtalo de nuevo.');
     expect(stateService.loading()).toBe(false);
     expect(stateService.goals()).toEqual([existingGoal]);
   });
@@ -153,7 +153,7 @@ describe('SavingsGoalsStateService', () => {
 
     stateService.addContribution(existingGoal.id, request);
 
-    expect(stateService.error()).toBe('Could not add the contribution. Please try again.');
+    expect(stateService.error()).toBe('No se pudo registrar la contribución. Inténtalo de nuevo.');
     expect(stateService.loading()).toBe(false);
     expect(stateService.goals()).toEqual([existingGoal, otherGoal]);
   });

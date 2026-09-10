@@ -4,9 +4,9 @@ import { SavingsGoal } from '../../../core/models/savings-goal.model';
 import { AddContributionRequest, CreateSavingsGoalRequest } from '../../../core/models/savings-goal-request.model';
 import { DEMO_USER_ID, SavingsGoalsApiService } from '../../../core/services/savings-goals-api.service';
 
-const LOAD_GOALS_ERROR_MESSAGE = 'Could not load your savings goals. Please try again.';
-const CREATE_GOAL_ERROR_MESSAGE = 'Could not create the savings goal. Please try again.';
-const ADD_CONTRIBUTION_ERROR_MESSAGE = 'Could not add the contribution. Please try again.';
+const LOAD_GOALS_ERROR_MESSAGE = 'No se pudieron cargar tus metas de ahorro. Inténtalo de nuevo.';
+const CREATE_GOAL_ERROR_MESSAGE = 'No se pudo crear la meta de ahorro. Inténtalo de nuevo.';
+const ADD_CONTRIBUTION_ERROR_MESSAGE = 'No se pudo registrar la contribución. Inténtalo de nuevo.';
 
 /**
  * Feature state for savings goals. Components read the readonly signals and call

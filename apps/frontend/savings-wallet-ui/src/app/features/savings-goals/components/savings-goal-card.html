@@ -1,0 +1,43 @@
+<article class="goal-card" [class.goal-card--completed]="isCompleted()">
+  <header class="goal-card__header">
+    <h3 class="goal-card__name">{{ goal().name }}</h3>
+    <span
+      class="goal-card__status"
+      [class.goal-card__status--completed]="isCompleted()"
+      [attr.data-status]="goal().status"
+    >
+      {{ isCompleted() ? 'Completada' : 'Activa' }}
+    </span>
+  </header>
+
+  <p class="goal-card__amounts">
+    <span class="goal-card__accumulated">
+      {{ goal().accumulatedAmount | currency: goal().currency : 'symbol' : '1.2-2' }}
+    </span>
+    <span class="goal-card__target">
+      de {{ goal().targetAmount | currency: goal().currency : 'symbol' : '1.2-2' }}
+    </span>
+  </p>
+
+  <div
+    class="goal-card__progress"
+    role="progressbar"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    [attr.aria-valuenow]="progressPercent()"
+    [attr.aria-label]="'Progreso de la meta ' + goal().name"
+  >
+    <div class="goal-card__progress-fill" [style.width.%]="progressPercent()"></div>
+  </div>
+  <p class="goal-card__progress-label">{{ progressPercent() }}%</p>
+
+  @if (!isCompleted()) {
+    <button
+      type="button"
+      class="button button--primary goal-card__contribute"
+      (click)="contribute.emit(goal().id)"
+    >
+      Contribuir
+    </button>
+  }
+</article>

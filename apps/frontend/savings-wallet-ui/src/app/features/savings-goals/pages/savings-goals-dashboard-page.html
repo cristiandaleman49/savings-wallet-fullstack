@@ -1,0 +1,28 @@
+<section class="dashboard">
+  <header class="dashboard__header">
+    <h1 class="dashboard__title">Metas de ahorro</h1>
+    <button type="button" class="button button--primary" (click)="onNewGoal()">Nueva meta</button>
+  </header>
+
+  @if (state.loading()) {
+    <p class="dashboard__status" role="status">Cargando metas de ahorro…</p>
+  } @else if (state.error(); as loadError) {
+    <div class="dashboard__alert" role="alert">
+      <p class="dashboard__alert-message">{{ loadError }}</p>
+      <button type="button" class="button button--ghost" (click)="retryLoad()">Reintentar</button>
+    </div>
+  } @else if (state.goals().length === 0) {
+    <div class="dashboard__empty">
+      <p class="dashboard__empty-title">Aún no tienes metas de ahorro.</p>
+      <p class="dashboard__empty-hint">Crea tu primera meta para empezar a ahorrar.</p>
+    </div>
+  } @else {
+    <ul class="dashboard__grid">
+      @for (goal of state.goals(); track goal.id) {
+        <li class="dashboard__grid-item">
+          <app-savings-goal-card [goal]="goal" (contribute)="onContribute($event)" />
+        </li>
+      }
+    </ul>
+  }
+</section>
