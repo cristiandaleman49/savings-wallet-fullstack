@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+
+set -eu
+
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+if [ ! -x "$JAVA_HOME/bin/java" ] || [ ! -x "$JAVA_HOME/bin/javac" ]; then
+    echo "JDK 21 is required at $JAVA_HOME." >&2
+    echo "Install it with: sudo apt-get install openjdk-21-jdk" >&2
+    exit 1
+fi
+
+export JAVA_HOME
+export PATH="$JAVA_HOME/bin:$PATH"
+
+exec "$(dirname "$0")/mvnw" "$@"
