@@ -3,6 +3,7 @@ package com.example.savingswallet.infrastructure.rest;
 import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -16,6 +17,7 @@ import com.example.savingswallet.application.usecase.GetSavingsGoals;
 import com.example.savingswallet.application.usecase.SavingsGoalNotFoundException;
 import com.example.savingswallet.domain.money.Money;
 import com.example.savingswallet.domain.savingsgoal.SavingsGoal;
+import com.example.savingswallet.infrastructure.sse.SavingsGoalSsePublisher;
 import java.math.BigDecimal;
 import java.util.Currency;
 import java.util.List;
@@ -25,6 +27,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @WebMvcTest(SavingsGoalController.class)
 class SavingsGoalControllerTest {
@@ -43,6 +46,9 @@ class SavingsGoalControllerTest {
 
     @MockitoBean
     private AddContribution addContribution;
+
+    @MockitoBean
+    private SavingsGoalSsePublisher ssePublisher;
 
     private static Money usd(String amount) {
         return new Money(new BigDecimal(amount), USD);
@@ -137,6 +143,25 @@ class SavingsGoalControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field == 'targetAmount')]").exists());
+    }
+
+    @Test
+    void eventsEndpointRequiresUserId() throws Exception {
+        mockMvc.perform(get("/api/v1/savings-goals/events"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("Missing required parameter 'userId'"));
+    }
+
+    @Test
+    void eventsEndpointSubscribesTheUserViaPublisher() throws Exception {
+        SseEmitter emitter = new SseEmitter();
+        when(ssePublisher.subscribe(USER_ID)).thenReturn(emitter);
+
+        mockMvc.perform(get("/api/v1/savings-goals/events").param("userId", "1"))
+                .andExpect(status().isOk());
+
+        verify(ssePublisher).subscribe(USER_ID);
     }
 
     @Test

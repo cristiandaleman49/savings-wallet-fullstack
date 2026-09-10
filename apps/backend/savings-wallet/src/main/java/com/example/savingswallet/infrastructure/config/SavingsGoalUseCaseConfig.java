@@ -1,5 +1,6 @@
 package com.example.savingswallet.infrastructure.config;
 
+import com.example.savingswallet.application.port.out.DomainEventPublisher;
 import com.example.savingswallet.application.port.out.SavingsGoalRepository;
 import com.example.savingswallet.application.usecase.AddContribution;
 import com.example.savingswallet.application.usecase.CreateSavingsGoal;
@@ -28,7 +29,7 @@ public class SavingsGoalUseCaseConfig {
     }
 
     @Bean
-    public AddContribution addContribution(SavingsGoalRepository repository) {
-        return new AddContribution(repository);
+    public AddContribution addContribution(SavingsGoalRepository repository, DomainEventPublisher eventPublisher) {
+        return new AddContribution(repository, eventPublisher);
     }
 }

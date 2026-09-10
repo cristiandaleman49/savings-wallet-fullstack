@@ -8,7 +8,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.savingswallet.application.port.out.DomainEventPublisher;
 import com.example.savingswallet.application.port.out.SavingsGoalRepository;
+import com.example.savingswallet.domain.event.GoalCompleted;
 import com.example.savingswallet.domain.money.Money;
 import com.example.savingswallet.domain.savingsgoal.SavingsGoal;
 import com.example.savingswallet.domain.savingsgoal.SavingsGoalStatus;
@@ -31,6 +33,9 @@ class AddContributionTest {
 
     @Mock
     private SavingsGoalRepository repository;
+
+    @Mock
+    private DomainEventPublisher eventPublisher;
 
     @InjectMocks
     private AddContribution addContribution;
@@ -113,30 +118,78 @@ class AddContributionTest {
 
     @Test
     void rejectsNullUserId() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> addContribution.execute(GOAL_ID, null, usd("10.00")))
-                .withMessage("userId must not be null");
+        assertThatThrownBy(() -> addContribution.execute(GOAL_ID, null, usd("10.00")))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("userId must not be null");
     }
 
     @Test
     void rejectsNullGoalId() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> addContribution.execute(null, USER_ID, usd("10.00")))
-                .withMessage("goalId must not be null");
+        assertThatThrownBy(() -> addContribution.execute(null, USER_ID, usd("10.00")))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("goalId must not be null");
     }
 
     @Test
     void rejectsNullContribution() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> addContribution.execute(GOAL_ID, USER_ID, null))
-                .withMessage("contribution must not be null");
+        assertThatThrownBy(() -> addContribution.execute(GOAL_ID, USER_ID, null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("contribution must not be null");
     }
 
     @Test
     void rejectsNullRepository() {
-        assertThatThrownBy(() -> new AddContribution(null))
+        assertThatThrownBy(() -> new AddContribution(null, eventPublisher))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("repository must not be null");
+    }
+
+    @Test
+    void rejectsNullEventPublisher() {
+        assertThatThrownBy(() -> new AddContribution(repository, null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("eventPublisher must not be null");
+    }
+
+    @Test
+    void publishesGoalCompletedWhenContributionReachesTarget() {
+        SavingsGoal goal = activeGoal(GOAL_ID, USER_ID, "900.00");
+        when(repository.findByIdAndUserId(GOAL_ID, USER_ID)).thenReturn(Optional.of(goal));
+        when(repository.save(goal)).thenAnswer(invocation -> invocation.getArgument(0));
+
+        addContribution.execute(GOAL_ID, USER_ID, usd("100.00"));
+
+        ArgumentCaptor<GoalCompleted> captor = ArgumentCaptor.forClass(GoalCompleted.class);
+        verify(eventPublisher).publish(captor.capture());
+        GoalCompleted event = captor.getValue();
+        assertThat(event.goalId()).isEqualTo(GOAL_ID);
+        assertThat(event.userId()).isEqualTo(USER_ID);
+        assertThat(event.goalName()).isEqualTo("Vacaciones");
+        assertThat(event.targetAmount()).isEqualTo(usd("1000.00"));
+        assertThat(event.completedAt()).isNotNull();
+    }
+
+    @Test
+    void doesNotPublishEventWhenGoalRemainsActive() {
+        SavingsGoal goal = activeGoal(GOAL_ID, USER_ID, "100.00");
+        when(repository.findByIdAndUserId(GOAL_ID, USER_ID)).thenReturn(Optional.of(goal));
+
+        addContribution.execute(GOAL_ID, USER_ID, usd("50.00"));
+
+        verify(eventPublisher, never()).publish(any(GoalCompleted.class));
+    }
+
+    @Test
+    void persistsBeforePublishingTheEvent() {
+        SavingsGoal goal = activeGoal(GOAL_ID, USER_ID, "900.00");
+        when(repository.findByIdAndUserId(GOAL_ID, USER_ID)).thenReturn(Optional.of(goal));
+        when(repository.save(goal)).thenAnswer(invocation -> invocation.getArgument(0));
+
+        addContribution.execute(GOAL_ID, USER_ID, usd("100.00"));
+
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(repository, eventPublisher);
+        inOrder.verify(repository).save(goal);
+        inOrder.verify(eventPublisher).publish(any(GoalCompleted.class));
     }
 
     @Test

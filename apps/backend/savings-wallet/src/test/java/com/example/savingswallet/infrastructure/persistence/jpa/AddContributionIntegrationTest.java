@@ -3,6 +3,7 @@ package com.example.savingswallet.infrastructure.persistence.jpa;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.example.savingswallet.application.port.out.DomainEventPublisher;
 import com.example.savingswallet.application.port.out.SavingsGoalRepository;
 import com.example.savingswallet.application.usecase.AddContribution;
 import com.example.savingswallet.application.usecase.SavingsGoalNotFoundException;
@@ -27,12 +28,14 @@ class AddContributionIntegrationTest {
     private SavingsGoalRepository repository;
     @Autowired
     private SavingsGoalJpaRepository jpaRepository;
+    @Autowired
+    private DomainEventPublisher eventPublisher;
 
     private AddContribution addContribution;
 
     @BeforeEach
     void setUp() {
-        addContribution = new AddContribution(repository);
+        addContribution = new AddContribution(repository, eventPublisher);
     }
 
     private static Money money(String amount) {

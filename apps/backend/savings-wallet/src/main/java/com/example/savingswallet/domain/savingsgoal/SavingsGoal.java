@@ -1,7 +1,11 @@
 package com.example.savingswallet.domain.savingsgoal;
 
+import com.example.savingswallet.domain.event.GoalCompleted;
 import com.example.savingswallet.domain.money.Money;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -10,6 +14,12 @@ import java.util.Objects;
  * <p>The goal accumulates money toward a target. It starts {@code ACTIVE}, and
  * becomes {@code COMPLETED} as soon as the accumulated amount reaches the target
  * amount. A completed goal can no longer receive contributions.
+ *
+ * <p>When a contribution causes the transition to {@code COMPLETED}, the
+ * aggregate raises a {@link GoalCompleted} domain event, available through
+ * {@link #domainEvents()}. Rehydrated or created-already-completed goals raise
+ * no events; a completed goal rejects further contributions, so the event is
+ * raised at most once per goal.
  */
 public final class SavingsGoal {
 
@@ -19,6 +29,7 @@ public final class SavingsGoal {
     private final Money targetAmount;
     private Money accumulatedAmount;
     private SavingsGoalStatus status;
+    private final List<GoalCompleted> domainEvents = new ArrayList<>();
 
     /**
      * Creates a goal from its current snapshot, deriving the status from the
@@ -95,7 +106,21 @@ public final class SavingsGoal {
         accumulatedAmount = new Money(newAccumulatedAmount, targetAmount.currency());
         if (accumulatedAmount.amount().compareTo(targetAmount.amount()) >= 0) {
             status = SavingsGoalStatus.COMPLETED;
+            registerGoalCompleted();
         }
+    }
+
+    private void registerGoalCompleted() {
+        domainEvents.add(new GoalCompleted(id, userId, name, targetAmount, Instant.now()));
+    }
+
+    /**
+     * Domain events raised by this aggregate instance, in raising order. Only
+     * contributions that complete the goal raise events; rehydrated aggregates
+     * start with an empty event list.
+     */
+    public List<GoalCompleted> domainEvents() {
+        return List.copyOf(domainEvents);
     }
 
     public Long id() {

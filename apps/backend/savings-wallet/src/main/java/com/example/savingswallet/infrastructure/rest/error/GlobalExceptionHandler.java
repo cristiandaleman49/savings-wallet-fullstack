@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -29,9 +30,15 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "Validation failed", request, fieldErrors);
     }
 
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException ex, HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, "Malformed request body", request, List.of());
+    @ExceptionHandler({
+            HttpMessageNotReadableException.class,
+            MissingServletRequestParameterException.class
+    })
+    public ResponseEntity<ApiError> handleUnreadable(Exception ex, HttpServletRequest request) {
+        String message = ex instanceof MissingServletRequestParameterException missing
+                ? "Missing required parameter '" + missing.getParameterName() + "'"
+                : "Malformed request body";
+        return build(HttpStatus.BAD_REQUEST, message, request, List.of());
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)

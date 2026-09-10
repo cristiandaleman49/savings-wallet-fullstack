@@ -9,6 +9,7 @@ import com.example.savingswallet.infrastructure.rest.dto.AddContributionRequest;
 import com.example.savingswallet.infrastructure.rest.dto.CreateSavingsGoalRequest;
 import com.example.savingswallet.infrastructure.rest.dto.SavingsGoalResponse;
 import com.example.savingswallet.infrastructure.rest.error.InvalidCurrencyCodeException;
+import com.example.savingswallet.infrastructure.sse.SavingsGoalSsePublisher;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -21,7 +22,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
@@ -43,12 +46,14 @@ public class SavingsGoalController {
     private final GetSavingsGoals getSavingsGoals;
     private final CreateSavingsGoal createSavingsGoal;
     private final AddContribution addContribution;
+    private final SavingsGoalSsePublisher ssePublisher;
 
     public SavingsGoalController(GetSavingsGoals getSavingsGoals, CreateSavingsGoal createSavingsGoal,
-                                 AddContribution addContribution) {
+                                 AddContribution addContribution, SavingsGoalSsePublisher ssePublisher) {
         this.getSavingsGoals = getSavingsGoals;
         this.createSavingsGoal = createSavingsGoal;
         this.addContribution = addContribution;
+        this.ssePublisher = ssePublisher;
     }
 
     @GetMapping
@@ -57,6 +62,11 @@ public class SavingsGoalController {
         return getSavingsGoals.execute(userId).stream()
                 .map(SavingsGoalResponse::from)
                 .toList();
+    }
+
+    @GetMapping("/events")
+    public SseEmitter streamEvents(@RequestParam("userId") Long userId) {
+        return ssePublisher.subscribe(userId);
     }
 
     @PostMapping

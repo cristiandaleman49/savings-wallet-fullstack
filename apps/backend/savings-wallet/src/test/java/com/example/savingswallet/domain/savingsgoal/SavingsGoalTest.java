@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
+import com.example.savingswallet.domain.event.GoalCompleted;
 import com.example.savingswallet.domain.money.Money;
 import java.math.BigDecimal;
 import java.util.Currency;
@@ -152,6 +153,56 @@ class SavingsGoalTest {
         SavingsGoal goal = new SavingsGoal(ID, USER_ID, NAME, usd("1000.00"), usd("1000.00"));
 
         assertThat(goal.status()).isEqualTo(SavingsGoalStatus.COMPLETED);
+        assertThat(goal.domainEvents()).isEmpty();
+    }
+
+    // --- GoalCompleted event ---
+
+    @Test
+    void contributionReachingTargetRaisesGoalCompletedEvent() {
+        SavingsGoal goal = new SavingsGoal(ID, USER_ID, NAME, usd("1000.00"), usd("900.00"));
+
+        goal.contribute(usd("100.00"));
+
+        assertThat(goal.status()).isEqualTo(SavingsGoalStatus.COMPLETED);
+        assertThat(goal.domainEvents()).hasSize(1);
+        GoalCompleted event = goal.domainEvents().get(0);
+        assertThat(event.goalId()).isEqualTo(ID);
+        assertThat(event.userId()).isEqualTo(USER_ID);
+        assertThat(event.goalName()).isEqualTo(NAME);
+        assertThat(event.targetAmount()).isEqualTo(usd("1000.00"));
+        assertThat(event.completedAt()).isNotNull();
+    }
+
+    @Test
+    void contributionNotReachingTargetRaisesNoEvent() {
+        SavingsGoal goal = new SavingsGoal(ID, USER_ID, NAME, usd("1000.00"), usd("100.00"));
+
+        goal.contribute(usd("50.00"));
+
+        assertThat(goal.status()).isEqualTo(SavingsGoalStatus.ACTIVE);
+        assertThat(goal.domainEvents()).isEmpty();
+    }
+
+    @Test
+    void goalCompletedEventIsRaisedAtMostOnce() {
+        SavingsGoal goal = new SavingsGoal(ID, USER_ID, NAME, usd("1000.00"), usd("500.00"));
+
+        goal.contribute(usd("500.00"));
+
+        assertThat(goal.domainEvents()).hasSize(1);
+        assertThatIllegalStateException()
+                .isThrownBy(() -> goal.contribute(usd("1.00")))
+                .withMessage("cannot contribute to a COMPLETED goal");
+        assertThat(goal.domainEvents()).hasSize(1);
+    }
+
+    @Test
+    void rehydratedCompletedGoalRaisesNoEvents() {
+        SavingsGoal goal = new SavingsGoal(ID, USER_ID, NAME, usd("1000.00"), usd("1000.00"));
+
+        assertThat(goal.status()).isEqualTo(SavingsGoalStatus.COMPLETED);
+        assertThat(goal.domainEvents()).isEmpty();
     }
 
     // --- contributions ---
