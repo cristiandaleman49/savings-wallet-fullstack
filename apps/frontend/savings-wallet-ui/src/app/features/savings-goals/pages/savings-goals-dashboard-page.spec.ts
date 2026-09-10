@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { Observable, Subject, of, throwError } from 'rxjs';
 import { SavingsGoal } from '../../../core/models/savings-goal.model';
 import { AddContributionRequest, CreateSavingsGoalRequest } from '../../../core/models/savings-goal-request.model';
@@ -46,7 +47,7 @@ describe('SavingsGoalsDashboardPage', () => {
   beforeEach(() => {
     apiServiceMock = createApiServiceMock();
     TestBed.configureTestingModule({
-      providers: [{ provide: SavingsGoalsApiService, useValue: apiServiceMock }],
+      providers: [provideRouter([]), { provide: SavingsGoalsApiService, useValue: apiServiceMock }],
     });
   });
 

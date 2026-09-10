@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { SavingsGoalCard } from '../components/savings-goal-card';
 import { SavingsGoalsStateService } from '../services/savings-goals-state.service';
 
@@ -14,6 +15,7 @@ import { SavingsGoalsStateService } from '../services/savings-goals-state.servic
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SavingsGoalsDashboardPage {
+  private readonly router = inject(Router);
   protected readonly state = inject(SavingsGoalsStateService);
 
   constructor() {
@@ -25,9 +27,9 @@ export class SavingsGoalsDashboardPage {
     // TODO(open-form): open the contribution form for the given goal.
   }
 
-  /** Entry point for the goal creation form (implemented in a later block). */
+  /** Opens the goal creation form. */
   protected onNewGoal(): void {
-    // TODO(open-form): open the goal creation form.
+    void this.router.navigate(['/savings-goals/new']);
   }
 
   /** Reloads the goals after a load error, as offered by the error state UI. */

@@ -1,0 +1,88 @@
+<section class="create-goal">
+  <header class="create-goal__header">
+    <h1 class="create-goal__title">Nueva meta de ahorro</h1>
+  </header>
+
+  @if (state.error(); as creationError) {
+    <div class="create-goal__alert" role="alert">
+      <p class="create-goal__alert-message">{{ creationError }}</p>
+    </div>
+  }
+
+  <form class="create-goal__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="field">
+      <label class="field__label" for="goal-name">Nombre</label>
+      <input
+        class="field__input"
+        id="goal-name"
+        type="text"
+        formControlName="name"
+        placeholder="Ej. Bicicleta nueva"
+      />
+      @if (isInvalid('name')) {
+        <p class="field__error">
+          @if (hasError('name', 'required')) {
+            El nombre es obligatorio.
+          } @else if (hasError('name', 'pattern')) {
+            El nombre no puede estar vacío.
+          }
+        </p>
+      }
+    </div>
+
+    <div class="field">
+      <label class="field__label" for="goal-target-amount">Monto objetivo</label>
+      <input
+        class="field__input"
+        id="goal-target-amount"
+        type="number"
+        min="0.01"
+        step="0.01"
+        inputmode="decimal"
+        formControlName="targetAmount"
+        placeholder="Ej. 500"
+      />
+      @if (isInvalid('targetAmount')) {
+        <p class="field__error">
+          @if (hasError('targetAmount', 'required')) {
+            El monto objetivo es obligatorio.
+          } @else if (hasError('targetAmount', 'min')) {
+            El monto objetivo debe ser mayor que 0.
+          }
+        </p>
+      }
+    </div>
+
+    <div class="field">
+      <label class="field__label" for="goal-currency">Moneda</label>
+      <input
+        class="field__input"
+        id="goal-currency"
+        type="text"
+        maxlength="3"
+        formControlName="currency"
+        placeholder="Ej. EUR"
+      />
+      @if (isInvalid('currency')) {
+        <p class="field__error">
+          @if (hasError('currency', 'required')) {
+            La moneda es obligatoria.
+          } @else if (hasError('currency', 'pattern')) {
+            La moneda debe tener formato de 3 letras.
+          }
+        </p>
+      }
+    </div>
+
+    <div class="create-goal__actions">
+      <button type="button" class="button button--ghost" (click)="cancel()">Cancelar</button>
+      <button
+        type="submit"
+        class="button button--primary"
+        [disabled]="form.invalid || state.loading()"
+      >
+        {{ state.loading() ? 'Creando…' : 'Crear meta' }}
+      </button>
+    </div>
+  </form>
+</section>
