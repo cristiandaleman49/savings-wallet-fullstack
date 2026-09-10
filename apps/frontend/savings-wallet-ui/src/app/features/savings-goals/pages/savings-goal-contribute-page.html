@@ -1,0 +1,78 @@
+@if (goal(); as selectedGoal) {
+  <section class="contribute">
+    <header class="contribute__header">
+      <h1 class="contribute__title">Contribuir a «{{ selectedGoal.name }}»</h1>
+    </header>
+
+    <dl class="contribute__summary">
+      <div class="contribute__summary-item">
+        <dt class="contribute__summary-label">Acumulado</dt>
+        <dd class="contribute__summary-value">
+          {{ selectedGoal.accumulatedAmount | currency: selectedGoal.currency : 'symbol' : '1.2-2' }}
+        </dd>
+      </div>
+      <div class="contribute__summary-item">
+        <dt class="contribute__summary-label">Objetivo</dt>
+        <dd class="contribute__summary-value">
+          {{ selectedGoal.targetAmount | currency: selectedGoal.currency : 'symbol' : '1.2-2' }}
+        </dd>
+      </div>
+    </dl>
+
+    @if (isCompleted()) {
+      <div class="contribute__notice" role="status">
+        <p class="contribute__notice-message">
+          Esta meta ya está completada; no admite más contribuciones.
+        </p>
+        <button type="button" class="button button--ghost" (click)="cancel()">Volver al dashboard</button>
+      </div>
+    } @else {
+      @if (state.error(); as contributionError) {
+        <div class="contribute__alert" role="alert">
+          <p class="contribute__alert-message">{{ contributionError }}</p>
+        </div>
+      }
+
+      <form class="contribute__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field">
+          <label class="field__label" for="contribution-amount">Monto a contribuir</label>
+          <input
+            class="field__input"
+            id="contribution-amount"
+            type="number"
+            min="0.01"
+            step="0.01"
+            inputmode="decimal"
+            formControlName="amount"
+            placeholder="Ej. 100"
+          />
+          @if (isInvalid('amount')) {
+            <p class="field__error">
+              @if (hasError('amount', 'required')) {
+                El monto es obligatorio.
+              } @else if (hasError('amount', 'min')) {
+                El monto debe ser mayor que 0.
+              }
+            </p>
+          }
+        </div>
+
+        <div class="contribute__actions">
+          <button type="button" class="button button--ghost" (click)="cancel()">Cancelar</button>
+          <button
+            type="submit"
+            class="button button--primary"
+            [disabled]="form.invalid || state.loading()"
+          >
+            {{ state.loading() ? 'Contribuyendo…' : 'Contribuir' }}
+          </button>
+        </div>
+      </form>
+    }
+  </section>
+} @else {
+  <section class="contribute contribute--missing">
+    <p class="contribute__missing-message">No se encontró la meta solicitada.</p>
+    <button type="button" class="button button--ghost" (click)="cancel()">Volver al dashboard</button>
+  </section>
+}

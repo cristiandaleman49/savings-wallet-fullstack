@@ -10,6 +10,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'savings-goals/:goalId/contribute',
+    loadComponent: () =>
+      import('./features/savings-goals/pages/savings-goal-contribute-page').then(
+        (m) => m.SavingsGoalContributePage,
+      ),
+  },
+  {
     path: 'savings-goals',
     loadComponent: () =>
       import('./features/savings-goals/pages/savings-goals-dashboard-page').then(

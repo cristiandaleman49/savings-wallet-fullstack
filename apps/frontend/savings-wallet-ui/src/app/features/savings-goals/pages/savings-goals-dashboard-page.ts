@@ -22,9 +22,9 @@ export class SavingsGoalsDashboardPage {
     this.state.loadGoals();
   }
 
-  /** Entry point for the contribution form (implemented in a later block). */
+  /** Opens the contribution flow for the given goal. */
   protected onContribute(goalId: number): void {
-    // TODO(open-form): open the contribution form for the given goal.
+    void this.router.navigate(['/savings-goals', goalId, 'contribute']);
   }
 
   /** Opens the goal creation form. */
