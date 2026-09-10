@@ -1,6 +1,7 @@
 package com.example.savingswallet.infrastructure.persistence.jpa;
 
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
@@ -13,4 +14,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface SavingsGoalJpaRepository extends JpaRepository<SavingsGoalEntity, Long> {
 
     List<SavingsGoalEntity> findByUserId(Long userId);
+
+    Optional<SavingsGoalEntity> findByIdAndUserId(Long goalId, Long userId);
 }

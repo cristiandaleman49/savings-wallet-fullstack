@@ -5,6 +5,7 @@ import com.example.savingswallet.domain.savingsgoal.SavingsGoal;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
@@ -33,5 +34,11 @@ public class SavingsGoalJpaAdapter implements SavingsGoalRepository {
         return jpaRepository.findByUserId(userId).stream()
                 .map(mapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public Optional<SavingsGoal> findByIdAndUserId(Long goalId, Long userId) {
+        return jpaRepository.findByIdAndUserId(goalId, userId)
+                .map(mapper::toDomain);
     }
 }
