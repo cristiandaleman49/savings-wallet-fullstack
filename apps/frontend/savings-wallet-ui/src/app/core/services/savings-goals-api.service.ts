@@ -11,9 +11,12 @@ const API_BASE_URL = '/api/v1/savings-goals';
  * centralized here so the whole flow can be replaced by real authentication
  * (e.g. an HTTP interceptor backed by a token/auth service) without touching
  * individual API methods.
+ *
+ * DEMO_USER_ID is exported so feature services reuse the same demo user
+ * instead of redefining it.
  */
 const AUTH_USER_HEADER = 'X-User-Id';
-const DEMO_USER_ID = 1;
+export const DEMO_USER_ID = 1;
 
 /**
  * Encapsulates all HTTP communication for the savings-goals REST API.
