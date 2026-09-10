@@ -137,6 +137,17 @@ class SavingsGoalTest {
     }
 
     @Test
+    void transientGoalHasNoIdUntilPersisted() {
+        SavingsGoal goal = SavingsGoal.open(USER_ID, NAME, usd("1000.00"));
+
+        assertThat(goal.id()).isNull();
+        assertThat(goal.userId()).isEqualTo(USER_ID);
+        assertThat(goal.name()).isEqualTo(NAME);
+        assertThat(goal.status()).isEqualTo(SavingsGoalStatus.ACTIVE);
+        assertThat(goal.accumulatedAmount()).isEqualTo(usd("0.00"));
+    }
+
+    @Test
     void goalAlreadyAccumulatedUpToTargetIsCompleted() {
         SavingsGoal goal = new SavingsGoal(ID, USER_ID, NAME, usd("1000.00"), usd("1000.00"));
 

@@ -25,7 +25,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class CreateSavingsGoalTest {
 
     private static final Currency USD = Currency.getInstance("USD");
-    private static final Long ID = 1L;
     private static final Long USER_ID = 42L;
     private static final String NAME = "Vacaciones";
 
@@ -43,12 +42,12 @@ class CreateSavingsGoalTest {
     void createsSavingsGoalWithExpectedData() {
         when(repository.save(any(SavingsGoal.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        createSavingsGoal.execute(ID, USER_ID, NAME, usd("1000.00"));
+        createSavingsGoal.execute(USER_ID, NAME, usd("1000.00"));
 
         ArgumentCaptor<SavingsGoal> captor = ArgumentCaptor.forClass(SavingsGoal.class);
         verify(repository).save(captor.capture());
         SavingsGoal goal = captor.getValue();
-        assertThat(goal.id()).isEqualTo(ID);
+        assertThat(goal.id()).isNull();
         assertThat(goal.userId()).isEqualTo(USER_ID);
         assertThat(goal.name()).isEqualTo(NAME);
         assertThat(goal.targetAmount()).isEqualTo(usd("1000.00"));
@@ -58,17 +57,17 @@ class CreateSavingsGoalTest {
 
     @Test
     void delegatesPersistenceToSavingsGoalRepository() {
-        createSavingsGoal.execute(ID, USER_ID, NAME, usd("1000.00"));
+        createSavingsGoal.execute(USER_ID, NAME, usd("1000.00"));
 
         verify(repository).save(any(SavingsGoal.class));
     }
 
     @Test
     void returnsTheRepositoryResult() {
-        SavingsGoal persisted = new SavingsGoal(ID, USER_ID, NAME, usd("1000.00"), usd("0.00"));
+        SavingsGoal persisted = new SavingsGoal(1L, USER_ID, NAME, usd("1000.00"), usd("0.00"));
         when(repository.save(any(SavingsGoal.class))).thenReturn(persisted);
 
-        SavingsGoal result = createSavingsGoal.execute(ID, USER_ID, NAME, usd("1000.00"));
+        SavingsGoal result = createSavingsGoal.execute(USER_ID, NAME, usd("1000.00"));
 
         assertThat(result).isSameAs(persisted);
     }
@@ -76,12 +75,21 @@ class CreateSavingsGoalTest {
     @Test
     void rejectsInvalidDomainDataWithoutTouchingTheRepository() {
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> createSavingsGoal.execute(ID, USER_ID, "   ", usd("1000.00")))
+                .isThrownBy(() -> createSavingsGoal.execute(USER_ID, "   ", usd("1000.00")))
                 .withMessage("name must not be blank");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> createSavingsGoal.execute(ID, USER_ID, NAME, usd("0.00")))
+                .isThrownBy(() -> createSavingsGoal.execute(USER_ID, NAME, usd("0.00")))
                 .withMessage("targetAmount must be greater than zero");
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void rejectsNullUserIdWithoutTouchingTheRepository() {
+        assertThatThrownBy(() -> createSavingsGoal.execute(null, NAME, usd("1000.00")))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("userId must not be null");
 
         verifyNoInteractions(repository);
     }
@@ -90,7 +98,7 @@ class CreateSavingsGoalTest {
     void propagatesRepositoryFailure() {
         when(repository.save(any(SavingsGoal.class))).thenThrow(new IllegalStateException("persistence failed"));
 
-        assertThatThrownBy(() -> createSavingsGoal.execute(ID, USER_ID, NAME, usd("1000.00")))
+        assertThatThrownBy(() -> createSavingsGoal.execute(USER_ID, NAME, usd("1000.00")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("persistence failed");
     }

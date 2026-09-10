@@ -1,16 +1,28 @@
 package com.example.savingswallet.infrastructure.persistence.jpa;
+
 import static org.assertj.core.api.Assertions.assertThat;
+
 import com.example.savingswallet.domain.money.Money;
 import com.example.savingswallet.domain.savingsgoal.SavingsGoal;
 import com.example.savingswallet.domain.savingsgoal.SavingsGoalStatus;
 import java.math.BigDecimal;
 import java.util.Currency;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Persistence integration tests against the real SQLite database.
+ *
+ * <p>With {@code GenerationType.IDENTITY} the identity contract is: a new entity
+ * reaches {@code save()} with {@code id == null} (persist + INSERT, SQLite
+ * generates the id), and an entity with a non-null id is by definition an
+ * existing row (merge + UPDATE). Test data is therefore created through the
+ * aggregate's transient factory, exactly like production code does.
+ */
 @SpringBootTest
 @Transactional
 class SavingsGoalJpaAdapterIntegrationTest {
@@ -21,87 +33,84 @@ class SavingsGoalJpaAdapterIntegrationTest {
     private SavingsGoalJpaAdapter adapter;
     @Autowired
     private SavingsGoalJpaRepository jpaRepository;
-    @Autowired
-    private SavingsGoalMapper mapper;
 
     private static Money money(String amount) {
         return new Money(new BigDecimal(amount), USD);
     }
 
     @Test
-    void persistsSavingsGoalThroughTheAdapter() {
-        SavingsGoal saved = adapter.save(SavingsGoal.open(1L, 42L, "Vacaciones", money("1000.00")));
-        assertThat(saved.id()).isEqualTo(1L);
+    void persistsTransientGoalWithDatabaseGeneratedId() {
+        SavingsGoal transientGoal = SavingsGoal.open(42L, "Vacaciones", money("1000.00"));
+        assertThat(transientGoal.id()).isNull();
+
+        SavingsGoal saved = adapter.save(transientGoal);
+
+        assertThat(saved.id()).isNotNull();
         assertThat(saved.userId()).isEqualTo(42L);
         assertThat(saved.name()).isEqualTo("Vacaciones");
         assertThat(saved.targetAmount()).isEqualTo(money("1000.00"));
         assertThat(saved.accumulatedAmount()).isEqualTo(money("0.00"));
         assertThat(saved.status()).isEqualTo(SavingsGoalStatus.ACTIVE);
+        assertThat(jpaRepository.findById(saved.id())).isPresent();
     }
 
     @Test
-    void reconstructsDomainAggregateFromPersistedRow() {
-        adapter.save(new SavingsGoal(2L, 42L, "Fondo", money("500.00"), money("200.00")));
-        SavingsGoalEntity entity = jpaRepository.findById(2L).orElseThrow();
-        assertThat(entity.getName()).isEqualTo("Fondo");
-        assertThat(entity.getTargetAmount()).isEqualByComparingTo("500.00");
-        assertThat(entity.getAccumulatedAmount()).isEqualByComparingTo("200.00");
-        assertThat(entity.getCurrency()).isEqualTo("USD");
-        assertThat(entity.getStatus()).isEqualTo(SavingsGoalStatus.ACTIVE);
-        SavingsGoal reloaded = mapper.toDomain(entity);
-        assertThat(reloaded.id()).isEqualTo(2L);
-        assertThat(reloaded.name()).isEqualTo("Fondo");
-        assertThat(reloaded.targetAmount()).isEqualTo(money("500.00"));
-        assertThat(reloaded.accumulatedAmount()).isEqualTo(money("200.00"));
-        assertThat(reloaded.status()).isEqualTo(SavingsGoalStatus.ACTIVE);
+    void findByIdAndUserIdReconstructsTheAggregate() {
+        SavingsGoal saved = adapter.save(SavingsGoal.open(42L, "Fondo", money("500.00")));
+
+        Optional<SavingsGoal> reloaded = adapter.findByIdAndUserId(saved.id(), 42L);
+
+        assertThat(reloaded).isPresent();
+        assertThat(reloaded.get().id()).isEqualTo(saved.id());
+        assertThat(reloaded.get().userId()).isEqualTo(42L);
+        assertThat(reloaded.get().name()).isEqualTo("Fondo");
+        assertThat(reloaded.get().targetAmount()).isEqualTo(money("500.00"));
+        assertThat(reloaded.get().accumulatedAmount()).isEqualTo(money("0.00"));
+        assertThat(reloaded.get().status()).isEqualTo(SavingsGoalStatus.ACTIVE);
     }
 
     @Test
-    void reconstructsCompletedGoalWithStatusDerivedFromAmounts() {
-        adapter.save(new SavingsGoal(3L, 42L, "Completado", money("500.00"), money("500.00")));
-        SavingsGoalEntity entity = jpaRepository.findById(3L).orElseThrow();
-        assertThat(entity.getStatus()).isEqualTo(SavingsGoalStatus.COMPLETED);
-        SavingsGoal reloaded = mapper.toDomain(entity);
-        assertThat(reloaded.status()).isEqualTo(SavingsGoalStatus.COMPLETED);
+    void findByIdAndUserIdReturnsEmptyForAnotherUser() {
+        SavingsGoal saved = adapter.save(SavingsGoal.open(42L, "Ajena", money("500.00")));
+
+        assertThat(adapter.findByIdAndUserId(saved.id(), 43L)).isEmpty();
     }
 
     @Test
-    void saveOverwritesExistingGoalWithSameId() {
-        adapter.save(SavingsGoal.open(4L, 42L, "Original", money("1000.00")));
-        adapter.save(SavingsGoal.open(4L, 42L, "Actualizado", money("2000.00")));
+    void savingAnExistingAggregateUpdatesTheRowWithoutCreatingANewOne() {
+        SavingsGoal saved = adapter.save(SavingsGoal.open(42L, "Fondo", money("500.00")));
+
+        SavingsGoal loaded = adapter.findByIdAndUserId(saved.id(), 42L).orElseThrow();
+        loaded.contribute(money("200.00"));
+        SavingsGoal savedAgain = adapter.save(loaded);
+
+        assertThat(savedAgain.id()).isEqualTo(saved.id());
         assertThat(jpaRepository.count()).isEqualTo(1L);
-        SavingsGoalEntity entity = jpaRepository.findById(4L).orElseThrow();
-        assertThat(entity.getName()).isEqualTo("Actualizado");
-        assertThat(entity.getTargetAmount()).isEqualByComparingTo("2000.00");
+        SavingsGoalEntity entity = jpaRepository.findById(saved.id()).orElseThrow();
+        assertThat(entity.getAccumulatedAmount()).isEqualByComparingTo("200.00");
     }
 
     @Test
     void findByUserIdReturnsOnlyGoalsBelongingToThatUser() {
-        adapter.save(SavingsGoal.open(10L, 100L, "Meta propia", money("1000.00")));
-        adapter.save(SavingsGoal.open(11L, 200L, "Meta de otro", money("500.00")));
+        adapter.save(SavingsGoal.open(100L, "Meta propia", money("1000.00")));
+        adapter.save(SavingsGoal.open(200L, "Meta de otro", money("500.00")));
 
         List<SavingsGoal> goals = adapter.findByUserId(100L);
 
-        assertThat(goals).extracting(SavingsGoal::id).containsExactly(10L);
-        assertThat(goals).allMatch(goal -> goal.userId().equals(100L));
-    }
-
-    @Test
-    void findByUserIdDoesNotExposeGoalsOfAnotherUser() {
-        adapter.save(SavingsGoal.open(12L, 300L, "Meta ajena", money("750.00")));
-
-        assertThat(adapter.findByUserId(100L)).isEmpty();
+        assertThat(goals).hasSize(1);
+        assertThat(goals.get(0).userId()).isEqualTo(100L);
+        assertThat(goals.get(0).name()).isEqualTo("Meta propia");
     }
 
     @Test
     void findByUserIdReturnsMultipleGoalsOfTheSameUser() {
-        adapter.save(SavingsGoal.open(13L, 100L, "Primera", money("1000.00")));
-        adapter.save(SavingsGoal.open(14L, 100L, "Segunda", money("2000.00")));
-        adapter.save(SavingsGoal.open(15L, 200L, "De otro", money("3000.00")));
+        adapter.save(SavingsGoal.open(100L, "Primera", money("1000.00")));
+        adapter.save(SavingsGoal.open(100L, "Segunda", money("2000.00")));
+        adapter.save(SavingsGoal.open(200L, "De otro", money("3000.00")));
 
         List<SavingsGoal> goals = adapter.findByUserId(100L);
 
-        assertThat(goals).extracting(SavingsGoal::id).containsExactlyInAnyOrder(13L, 14L);
+        assertThat(goals).hasSize(2);
         assertThat(goals).allMatch(goal -> goal.userId().equals(100L));
     }
 

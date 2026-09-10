@@ -26,7 +26,20 @@ public final class SavingsGoal {
      * as well as for testing the completion invariant.
      */
     public SavingsGoal(Long id, Long userId, String name, Money targetAmount, Money accumulatedAmount) {
-        this.id = Objects.requireNonNull(id, "id must not be null");
+        this(id, userId, name, targetAmount, accumulatedAmount, true);
+    }
+
+    /**
+     * Internal constructor that also supports creating a transient aggregate
+     * (id = null) through {@link #open(Long, String, Money)}. The reconstruction
+     * path ({@link #SavingsGoal(Long, Long, String, Money, Money)}) always
+     * requires a non-null id.
+     */
+    private SavingsGoal(Long id, Long userId, String name, Money targetAmount, Money accumulatedAmount, boolean requireId) {
+        if (requireId) {
+            Objects.requireNonNull(id, "id must not be null");
+        }
+        this.id = id;
         this.userId = Objects.requireNonNull(userId, "userId must not be null");
         this.name = requireValidName(name);
         this.targetAmount = requirePositive(Objects.requireNonNull(targetAmount, "targetAmount must not be null"), "targetAmount");
@@ -41,12 +54,24 @@ public final class SavingsGoal {
     }
 
     /**
-     * Opens a new goal with nothing accumulated yet; it always starts
-     * {@code ACTIVE}.
+     * Opens a new goal from a snapshot with its identity already assigned. Used
+     * for rehydrating persisted goals and for tests.
      */
     public static SavingsGoal open(Long id, Long userId, String name, Money targetAmount) {
         Objects.requireNonNull(targetAmount, "targetAmount must not be null");
         return new SavingsGoal(id, userId, name, targetAmount, new Money(BigDecimal.ZERO, targetAmount.currency()));
+    }
+
+    /**
+     * Opens a new, not-yet-persisted goal with {@code id == null}; it always
+     * starts {@code ACTIVE}. The database assigns the identity when the
+     * aggregate is first persisted.
+     */
+    public static SavingsGoal open(Long userId, String name, Money targetAmount) {
+        Objects.requireNonNull(userId, "userId must not be null");
+        Objects.requireNonNull(name, "name must not be null");
+        Objects.requireNonNull(targetAmount, "targetAmount must not be null");
+        return new SavingsGoal(null, userId, name, targetAmount, new Money(BigDecimal.ZERO, targetAmount.currency()), false);
     }
 
     /**

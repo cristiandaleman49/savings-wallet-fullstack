@@ -21,8 +21,8 @@ public final class CreateSavingsGoal {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
     }
 
-    public SavingsGoal execute(Long id, Long userId, String name, Money targetAmount) {
-        SavingsGoal goal = SavingsGoal.open(id, userId, name, targetAmount);
+    public SavingsGoal execute(Long userId, String name, Money targetAmount) {
+        SavingsGoal goal = SavingsGoal.open(userId, name, targetAmount);
         return repository.save(goal);
     }
 }

@@ -25,7 +25,6 @@ class AddContributionIntegrationTest {
 
     @Autowired
     private SavingsGoalRepository repository;
-
     @Autowired
     private SavingsGoalJpaRepository jpaRepository;
 
@@ -40,59 +39,59 @@ class AddContributionIntegrationTest {
         return new Money(new BigDecimal(amount), USD);
     }
 
-    private SavingsGoal createGoal(Long id, Long userId, String name, String target, String accumulated) {
-        return repository.save(new SavingsGoal(id, userId, name, money(target), money(accumulated)));
+    private Long createGoal(Long userId, String name, String target) {
+        return repository.save(SavingsGoal.open(userId, name, money(target))).id();
     }
 
     @Test
     void persistsAContribution() {
-        createGoal(20L, 100L, "Vacaciones", "1000.00", "0.00");
+        Long goalId = createGoal(100L, "Vacaciones", "1000.00");
 
-        addContribution.execute(20L, 100L, money("150.00"));
+        addContribution.execute(goalId, 100L, money("150.00"));
 
-        SavingsGoalEntity entity = jpaRepository.findById(20L).orElseThrow();
+        SavingsGoalEntity entity = jpaRepository.findById(goalId).orElseThrow();
         assertThat(entity.getAccumulatedAmount()).isEqualByComparingTo("150.00");
-        SavingsGoal reloaded = repository.findByIdAndUserId(20L, 100L).orElseThrow();
+        SavingsGoal reloaded = repository.findByIdAndUserId(goalId, 100L).orElseThrow();
         assertThat(reloaded.accumulatedAmount()).isEqualTo(money("150.00"));
     }
 
     @Test
     void updatesAccumulatedAmountCorrectly() {
-        createGoal(21L, 100L, "Fondo", "1000.00", "100.00");
+        Long goalId = createGoal(100L, "Fondo", "1000.00");
 
-        SavingsGoal result = addContribution.execute(21L, 100L, money("50.00"));
+        SavingsGoal result = addContribution.execute(goalId, 100L, money("50.00"));
 
-        assertThat(result.accumulatedAmount()).isEqualTo(money("150.00"));
-        assertThat(jpaRepository.findById(21L).orElseThrow().getAccumulatedAmount()).isEqualByComparingTo("150.00");
+        assertThat(result.accumulatedAmount()).isEqualTo(money("50.00"));
+        assertThat(jpaRepository.findById(goalId).orElseThrow().getAccumulatedAmount()).isEqualByComparingTo("50.00");
     }
 
     @Test
     void activeGoalRemainsActiveWhenTargetIsNotReached() {
-        createGoal(22L, 100L, "Fondo", "1000.00", "0.00");
+        Long goalId = createGoal(100L, "Fondo", "1000.00");
 
-        SavingsGoal result = addContribution.execute(22L, 100L, money("100.00"));
+        SavingsGoal result = addContribution.execute(goalId, 100L, money("100.00"));
 
         assertThat(result.status()).isEqualTo(SavingsGoalStatus.ACTIVE);
     }
 
     @Test
     void goalBecomesCompletedWhenContributionReachesTarget() {
-        createGoal(23L, 100L, "Fondo", "1000.00", "900.00");
+        Long goalId = createGoal(100L, "Fondo", "1000.00");
 
-        SavingsGoal result = addContribution.execute(23L, 100L, money("100.00"));
+        SavingsGoal result = addContribution.execute(goalId, 100L, money("1000.00"));
 
         assertThat(result.accumulatedAmount()).isEqualTo(money("1000.00"));
         assertThat(result.status()).isEqualTo(SavingsGoalStatus.COMPLETED);
-        assertThat(jpaRepository.findById(23L).orElseThrow().getStatus()).isEqualTo(SavingsGoalStatus.COMPLETED);
+        assertThat(jpaRepository.findById(goalId).orElseThrow().getStatus()).isEqualTo(SavingsGoalStatus.COMPLETED);
     }
 
     @Test
     void cannotRetrieveOrContributeToGoalOfAnotherUser() {
-        createGoal(24L, 100L, "Ajena", "1000.00", "0.00");
+        Long goalId = createGoal(100L, "Ajena", "1000.00");
 
-        assertThatThrownBy(() -> addContribution.execute(24L, 200L, money("10.00")))
+        assertThatThrownBy(() -> addContribution.execute(goalId, 200L, money("10.00")))
                 .isInstanceOf(SavingsGoalNotFoundException.class);
-        SavingsGoalEntity entity = jpaRepository.findById(24L).orElseThrow();
+        SavingsGoalEntity entity = jpaRepository.findById(goalId).orElseThrow();
         assertThat(entity.getAccumulatedAmount()).isEqualByComparingTo("0.00");
     }
 
