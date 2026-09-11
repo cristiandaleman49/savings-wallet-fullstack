@@ -4,7 +4,6 @@ import com.example.savingswallet.application.port.out.DomainEventPublisher;
 import com.example.savingswallet.domain.event.DomainEvent;
 import com.example.savingswallet.domain.event.GoalCompleted;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -76,7 +75,7 @@ public class SavingsGoalSsePublisher implements DomainEventPublisher {
 
     private void notifySubscribers(GoalCompleted event) {
         List<SseEmitter> subscribers = emittersByUser.getOrDefault(event.userId(), List.of());
-        for (SseEmitter emitter : subscribers) {
+        for (SseEmitter emitter : List.copyOf(subscribers)) {
             send(event, emitter);
         }
     }
@@ -86,7 +85,21 @@ public class SavingsGoalSsePublisher implements DomainEventPublisher {
             emitter.send(SseEmitter.event()
                     .name(EVENT_NAME)
                     .data(objectMapper.writeValueAsString(payload(event)), MediaType.APPLICATION_JSON));
-        } catch (IOException | IllegalStateException ex) {
+        } catch (Exception ex) {
+            // Best-effort delivery: a dead client (broken pipe, reset connection,
+            // completed/timeout emitter, serialization failure, ...) must never
+            // fail the contribution request running on this thread. Just drop the
+            // connection from the registry and let the client reconnect.
+            //
+            // Deliberately NOT calling emitter.complete() here: after a failed
+            // send the underlying output is already broken, so complete() would
+            // flush again, fail, and call DeferredResult.setErrorResult(ex).
+            // That schedules an async error dispatch for GET /events which ends
+            // up in GlobalExceptionHandler trying to render an ApiError JSON
+            // into a response already committed as text/event-stream, producing
+            // HttpMessageNotWritableException. Removing without completing avoids
+            // the REST error path entirely; the container reclaims the dead
+            // async request on its own.
             log.debug("Failed to deliver goal-completed event to user {}, removing connection", event.userId(), ex);
             remove(event.userId(), emitter);
         }

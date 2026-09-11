@@ -1,0 +1,16 @@
+<div class="completion-overlay" (click)="onContinue()">
+  <div
+    class="completion-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="goal-completed-title"
+    (click)="$event.stopPropagation()"
+  >
+    <p class="completion-dialog__emoji" aria-hidden="true">🎉</p>
+    <h2 class="completion-dialog__title" id="goal-completed-title">¡Meta completada!</h2>
+    <p class="completion-dialog__name">&ldquo;{{ completedEvent().goalName }}&rdquo;</p>
+    <p class="completion-dialog__message">¡Has alcanzado tu objetivo de ahorro!</p>
+    <p class="completion-dialog__target">Objetivo: {{ completedEvent().targetAmount | number }}</p>
+    <button type="button" class="button button--primary" (click)="onContinue()" autofocus>Continuar</button>
+  </div>
+</div>

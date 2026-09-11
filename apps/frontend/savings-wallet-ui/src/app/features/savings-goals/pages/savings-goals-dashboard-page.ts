@@ -6,6 +6,11 @@ import { SavingsGoalsStateService } from '../services/savings-goals-state.servic
 /**
  * Savings Goals dashboard. Route-level page that composes the feature state
  * service and presentational cards; it contains no HTTP or business logic.
+ *
+ * Realtime wiring (SSE connection, `goal-completed` subscription and the
+ * celebration dialog) lives in the App shell, whose lifetime spans navigation:
+ * this page is destroyed while the user fills the contribution form, exactly
+ * when the backend publishes the completion event.
  */
 @Component({
   selector: 'app-savings-goals-dashboard',

@@ -13,6 +13,7 @@ import com.example.savingswallet.domain.savingsgoal.SavingsGoal;
 import com.example.savingswallet.infrastructure.sse.SavingsGoalSsePublisher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Currency;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @SpringBootTest
@@ -135,6 +137,31 @@ class SavingsGoalSseIntegrationTest {
         // asyncDispatch inicializa el emisor, detecta complete=true y dispara onCompletion -> remove.
         mockMvc.perform(asyncDispatch(result)).andReturn();
 
+        assertThat(ssePublisher.subscriberCount(1L)).isEqualTo(0);
+    }
+
+    @Test
+    void sseAsyncFailureDoesNotRenderApiErrorAsEventStream() throws Exception {
+        // Regression test for the production warning:
+        //   HttpMessageNotWritableException: No converter for [ApiError]
+        //   with preset Content-Type 'text/event-stream'
+        //
+        // When the async SSE dispatch fails after the response was committed
+        // as text/event-stream (client disconnected mid-stream), Spring must
+        // NOT try to render the global ApiError JSON into that response:
+        // no message converter can write ApiError with the SSE content type.
+        // The controller-local @ExceptionHandler(AsyncRequestNotUsableException)
+        // in SavingsGoalController swallows the failure silently (void, no
+        // body), so the failure stays silent and REST error handling is
+        // untouched. The dead emitter is removed by the lifecycle callbacks.
+        MvcResult result = openEventsStream(1L);
+        SseEmitter emitter = ssePublisher.connections(1L).get(0);
+        emitter.completeWithError(new AsyncRequestNotUsableException("Simulated client abort"));
+
+        MvcResult dispatched = mockMvc.perform(asyncDispatch(result)).andReturn();
+
+        assertThat(dispatched.getResponse().getContentAsString()).doesNotContain("Internal Server Error");
+        assertThat(dispatched.getResponse().getContentAsString()).doesNotContain("\"status\":500");
         assertThat(ssePublisher.subscriberCount(1L)).isEqualTo(0);
     }
 

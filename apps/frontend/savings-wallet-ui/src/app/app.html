@@ -1,1 +1,5 @@
 <router-outlet />
+
+@if (completedEvent(); as event) {
+  <app-goal-completed-dialog [completedEvent]="event" (closed)="dismissCompletedDialog()" />
+}

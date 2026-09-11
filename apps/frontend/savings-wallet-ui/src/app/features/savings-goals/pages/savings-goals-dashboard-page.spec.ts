@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { Observable, Subject, of, throwError } from 'rxjs';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { SavingsGoal } from '../../../core/models/savings-goal.model';
 import { AddContributionRequest, CreateSavingsGoalRequest } from '../../../core/models/savings-goal-request.model';
 import { SavingsGoalsApiService } from '../../../core/services/savings-goals-api.service';
@@ -132,4 +132,5 @@ describe('SavingsGoalsDashboardPage', () => {
 
     expect(el.querySelector('.dashboard__header .button')?.textContent).toContain('Nueva meta');
   });
+
 });

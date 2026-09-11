@@ -1,8 +1,12 @@
 package com.example.savingswallet.infrastructure.rest.error;
 
 import com.example.savingswallet.application.usecase.SavingsGoalNotFoundException;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -18,9 +22,23 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * <p>Only HTTP/request concerns live here: malformed shapes map to 400, the
  * goal-not-found (including ownership mismatch) maps to 404, domain business
  * rule violations map to 422, and anything unexpected maps to 500.
+ *
+ * <p>SSE exception: when the async dispatch of {@code GET
+ * /api/v1/savings-goals/events} fails after the response was committed as
+ * {@code text/event-stream} (client disconnected mid-stream), no
+ * {@code ApiError} body is rendered. There is no message converter capable of
+ * writing {@code ApiError} with that content type, so attempting it only
+ * produces {@code HttpMessageNotWritableException}. Returning {@code null}
+ * tells Spring the error was handled with no body; the dead emitter is
+ * already removed by the SSE lifecycle callbacks. Synchronous errors on the
+ * {@code /events} endpoint itself (e.g. missing {@code userId} parameter,
+ * dispatched as {@code REQUEST} before the stream starts) still render the
+ * normal {@code ApiError} JSON.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
@@ -62,8 +80,32 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest request) {
+    public ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest request,
+                                                    HttpServletResponse response) {
+        if (isCommittedSseDispatch(request, response)) {
+            // SSE lifecycle failure on an already-committed text/event-stream
+            // response (dead client). Handle with no body instead of trying to
+            // serialize ApiError, which has no capable converter for the SSE
+            // content type and would only raise HttpMessageNotWritableException.
+            log.debug("SSE dispatch failed on committed stream, skipping ApiError body", ex);
+            return null;
+        }
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected server error", request, List.of());
+    }
+
+    /**
+     * True only for async dispatches of the SSE stream endpoint after the
+     * response headers (content type {@code text/event-stream}) were committed.
+     * Every other dispatch — including synchronous errors on the very same
+     * endpoint before the stream starts — renders the normal {@code ApiError}.
+     */
+    private static boolean isCommittedSseDispatch(HttpServletRequest request, HttpServletResponse response) {
+        String contentType = response.getContentType();
+        return request.getDispatcherType() == DispatcherType.ASYNC
+                && request.getRequestURI() != null
+                && request.getRequestURI().endsWith("/events")
+                && (response.isCommitted()
+                        || (contentType != null && contentType.startsWith("text/event-stream")));
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message, HttpServletRequest request,

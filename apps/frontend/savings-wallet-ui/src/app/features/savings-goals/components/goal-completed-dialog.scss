@@ -1,0 +1,59 @@
+/* Celebration dialog: fixed overlay + distinctive gold-accented card. */
+
+:host {
+  display: contents;
+}
+
+.completion-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: rgb(15 23 42 / 0.55);
+}
+
+.completion-dialog {
+  width: 100%;
+  max-width: 24rem;
+  padding: 2rem 1.5rem;
+  border-radius: 1rem;
+  border-top: 0.375rem solid #f59e0b;
+  background-color: #fff;
+  box-shadow: 0 1.5rem 3rem rgb(15 23 42 / 0.25);
+  text-align: center;
+}
+
+.completion-dialog__emoji {
+  margin: 0 0 0.5rem;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.completion-dialog__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.completion-dialog__name {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #b45309;
+  overflow-wrap: break-word;
+}
+
+.completion-dialog__message {
+  margin: 0 0 1rem;
+  color: #475569;
+}
+
+.completion-dialog__target {
+  margin: 0 0 1.5rem;
+  font-weight: 600;
+  color: #0f172a;
+}

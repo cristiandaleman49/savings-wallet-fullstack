@@ -1,14 +1,18 @@
 package com.example.savingswallet.infrastructure.rest;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.savingswallet.application.usecase.AddContribution;
@@ -18,6 +22,7 @@ import com.example.savingswallet.application.usecase.SavingsGoalNotFoundExceptio
 import com.example.savingswallet.domain.money.Money;
 import com.example.savingswallet.domain.savingsgoal.SavingsGoal;
 import com.example.savingswallet.infrastructure.sse.SavingsGoalSsePublisher;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Currency;
 import java.util.List;
@@ -27,6 +32,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @WebMvcTest(SavingsGoalController.class)
@@ -151,6 +158,45 @@ class SavingsGoalControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.message").value("Missing required parameter 'userId'"));
+    }
+
+    @Test
+    void sseBrokenConnectionDoesNotRenderApiError() throws Exception {
+        // Regression test for the production warning:
+        //   HttpMessageNotWritableException: No converter for [ApiError]
+        //   with preset Content-Type 'text/event-stream'
+        //
+        // When SseEmitter.send() fails at flush time (broken pipe after the
+        // headers were committed as text/event-stream), the failure surfaces
+        // during async dispatch as AsyncRequestNotUsableException. The
+        // controller-local @ExceptionHandler must swallow it (void, no
+        // body) so the global GlobalExceptionHandler never tries to render
+        // an ApiError JSON into a response with no JSON-capable converter.
+        //
+        // NOTE: this cannot be reproduced by making the mocked
+        // ssePublisher.subscribe() throw: in MockMvc the "already gone"
+        // condition only happens on the async dispatch thread after the
+        // response was committed. Subscribing therefore returns an emitter
+        // whose send() fails, mimicking the production broken pipe.
+        SseEmitter deadEmitter = new SseEmitter();
+        when(ssePublisher.subscribe(USER_ID)).thenReturn(deadEmitter);
+
+        MvcResult started = mockMvc.perform(
+                        get("/api/v1/savings-goals/events").param("userId", "1"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        // Fail the emitter exactly like a client abort: the response is
+        // already committed as text/event-stream, so there is nowhere to
+        // write an ApiError body.
+        deadEmitter.completeWithError(new IOException("Simulated client abort"));
+
+        MvcResult dispatched = mockMvc.perform(asyncDispatch(started)).andReturn();
+
+        String body = dispatched.getResponse().getContentAsString();
+        assertThat(body).doesNotContain("Internal Server Error");
+        assertThat(body).doesNotContain("\"status\":500");
+        assertThat(body).doesNotContain("No converter");
     }
 
     @Test

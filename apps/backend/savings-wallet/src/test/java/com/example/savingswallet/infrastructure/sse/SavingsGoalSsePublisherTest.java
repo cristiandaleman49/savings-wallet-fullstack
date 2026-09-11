@@ -94,6 +94,22 @@ class SavingsGoalSsePublisherTest {
         assertThat(spied.subscriberCount(USER_ID)).isEqualTo(0);
     }
 
+    @Test
+    void deadClientWithUnexpectedErrorDoesNotFailPublication() throws Exception {
+        // Regression test: a dead SSE connection (e.g. broken pipe surfaced as a
+        // runtime wrapper instead of a plain IOException) must never propagate
+        // out of publish() and fail the contribution request.
+        SseEmitter deadEmitter = mock(SseEmitter.class);
+        doThrow(new RuntimeException(new java.io.IOException("Broken pipe")))
+                .when(deadEmitter)
+                .send(any(SseEmitter.SseEventBuilder.class));
+
+        SavingsGoalSsePublisher spied = new SavingsGoalSsePublisherForTest(deadEmitter);
+
+        assertThatNoException().isThrownBy(() -> spied.publish(event(1L, USER_ID)));
+        assertThat(spied.subscriberCount(USER_ID)).isEqualTo(0);
+    }
+
     private static final class SavingsGoalSsePublisherForTest extends SavingsGoalSsePublisher {
 
         SavingsGoalSsePublisherForTest(SseEmitter emitter) {
