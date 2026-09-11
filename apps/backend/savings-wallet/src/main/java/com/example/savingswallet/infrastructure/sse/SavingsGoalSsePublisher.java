@@ -63,6 +63,8 @@ public class SavingsGoalSsePublisher implements DomainEventPublisher {
     public SseEmitter subscribe(Long userId) {
         SseEmitter emitter = new SseEmitter(0L);
         register(userId, emitter);
+        log.info("SSE subscription opened for user {}, active connections: {}", userId,
+                subscriberCount(userId));
         return emitter;
     }
 
@@ -75,6 +77,8 @@ public class SavingsGoalSsePublisher implements DomainEventPublisher {
 
     private void notifySubscribers(GoalCompleted event) {
         List<SseEmitter> subscribers = emittersByUser.getOrDefault(event.userId(), List.of());
+        log.info("Publishing goal-completed event for goal {} to {} subscriber(s) of user {}",
+                event.goalId(), subscribers.size(), event.userId());
         for (SseEmitter emitter : List.copyOf(subscribers)) {
             send(event, emitter);
         }
